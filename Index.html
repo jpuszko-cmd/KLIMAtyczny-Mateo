@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KLIMAtyczny Mateo - Arcade Edition</title>
+<style>
+body {
+margin: 0;
+overflow: hidden;
+background-color: #111;
+font-family: 'Courier New', Courier, monospace;
+color: white;
+user-select: none;
+}
+#ui-layer {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+pointer-events: none;
+display: flex;
+flex-direction: column;
+justify-content: space-between;
+}
+#top-bar {
+padding: 20px;
+font-size: 24px;
+font-weight: bold;
+display: flex;
+justify-content: space-between;
+text-shadow: 2px 2px 0 #000;
+}
+#center-msg {
+position: absolute;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+font-size: 40px;
+text-align: center;
+text-shadow: 3px 3px 0 #000;
+background: rgba(0,0,0,0.8);
+padding: 20px 40px;
+border-radius: 10px;
+display: none;
+border: 2px solid #555;
+}
+#qte-hint {
+position: absolute;
+top: 30%;
+left: 75%;
+transform: translate(-50%, -50%);
+font-size: 60px;
+text-shadow: 4px 4px 0 #000;
+display: none;
+background: rgba(0,0,0,0.6);
+padding: 10px 20px;
+border-radius: 10px;
+animation: pulse 0.5s infinite alternate;
+}
+@keyframes pulse {
+from { transform: translate(-50%, -50%) scale(1); }
+to { transform: translate(-50%, -50%) scale(1.1); }
+}
+.highlight { color: #ffeb3b; }
+.danger { color: #f44336; }
+.success { color: #4caf50; }
+.instruction { font-size: 18px; color: #ccc; margin-top: 10px; display: block; }
+</style>
+</head>
+<body>
+
+<div id="ui-layer">
+<div id="top-bar">
+<div>
+Wypite: <span id="score" class="highlight">0</span>
+<span id="stage-info" style="margin-left:20px; color:#aaa;">Etap 1</span>
+</div>
+<div>Szanse: <span id="lives" class="danger">❤❤❤</span></div>
+</div>
+<div id="center-msg"></div>
+<div id="qte-hint"></div>
+</div>
+
+<!-- Biblioteka Three.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// 1. Konfiguracja Sceny (Ortograficzna kamera dla 2D)
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a120c);
+
+const aspect = window.innerWidth / window.innerHeight;
+const viewSize = 12;
+const camera = new THREE.OrthographicCamera(
+-viewSize * aspect / 2, viewSize * aspect / 2,
+viewSize / 2, -viewSize / 2,
+0.1, 100
+);
+camera.position.set(0, 2, 10);
+camera.lookAt(0, 2, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: false });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// Oświetlenie
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+scene.add(ambientLight);
+const dirLight = new THREE.DirectionalLight(0xffddaa, 0.6);
+dirLight.position.set(0, 10, 5);
+scene.add(dirLight);
+
+// 2. Zmienne Gry
+let stage = 1;
+let score = 0;
+let misses = 0;
+const stage1Goal = 30;
+const maxMisses = 3;
+let isGameOver = false;
+
+let drinks = [];
+let baseSpeed = 0.08;
+let spawnTimer = 0;
+let spawnInterval = 100; // klatki
+
+// Zmienne mechaniki chwiania (Etap 2)
+let isSwaying = false;
+let swayDirection = 0; // -1 lewo, 1 prawo
+let swayTimer = 0;
+const swayTimeLimit = 90; // czas na reakcję
+let drinksSinceLastSway = 0;
+let nextSwayThreshold = 2; // co 2 lub 3 drinki
+
+// 3. Materiały
+const mat = {
+skin: new THREE.MeshLambertMaterial({ color: 0xffccaa }),
+beard: new THREE.MeshLambertMaterial({ color: 0xd9534f }),
+shirtPlayer: new THREE.MeshLambertMaterial({ color: 0x5cb85c }),
+shirtBartender: new THREE.MeshLambertMaterial({ color: 0xeeeeee }),
+barTable: new THREE.MeshLambertMaterial({ color: 0x4a3018 }),
+drinkBase: new THREE.MeshLambertMaterial({ color: 0xdddddd, transparent: true, opacity: 0.8 }),
+drinkLiquid: new THREE.MeshLambertMaterial({ color: 0xccffff })
+};
+
+// 4. Budowa Obiektów
+
+// Barman (Lewa strona)
+const bartender = new THREE.Group();
+const bBody = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 1), mat.shirtBartender);
+bBody.position.y = 1.5;
+const bHead = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 1.5), mat.skin);
+bHead.position.y = 3.8;
+bartender.add(bBody, bHead);
+bartender.position.set(-7, 0, 0);
+scene.add(bartender);
+
+// Gracz (Prawa strona)
+const player = new THREE.Group();
+const pBody = new THREE.Mesh(new THREE.BoxGeometry(2.5, 3.2, 1.5), mat.shirtPlayer);
+pBody.position.y = 1.6;
+const pHead = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.6, 1.6), mat.skin);
+pHead.position.y = 4.0;
+const pBeard = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.0, 1.7), mat.beard);
+pBeard.position.y = 3.4;
+const pStool = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 2, 8), new THREE.MeshLambertMaterial({color: 0x331a00}));
+pStool.position.y = -1;
+player.add(pBody, pHead, pBeard, pStool);
+player.position.set(6, 0, 0);
+scene.add(player);
+
+// Blat Baru
+const barGeo = new THREE.BoxGeometry(16, 1, 3);
+const barMesh = new THREE.Mesh(barGeo, mat.barTable);
+barMesh.position.set(0, 0.5, 0);
+scene.add(barMesh);
+
+// Tworzenie drinka
+function spawnDrink() {
+const drink = new THREE.Group();
+const glass = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.2, 0.5), mat.drinkBase);
+glass.position.y = 0.6;
+const liquid = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.9, 0.4), mat.drinkLiquid);
+liquid.position.y = 0.65;
+drink.add(glass, liquid);
+
+drink.position.set(-5.5, 1, 0); // Start przy barmanie
+scene.add(drink);
+drinks.push({ obj: drink, active: true });
+
+// Prosta animacja barmana
+bartender.rotation.z = -0.1;
+setTimeout(() => { bartender.rotation.z = 0; }, 100);
+}
+
+// 5. Sterowanie i Logika Łapania
+window.addEventListener('keydown', (e) => {
+if (isGameOver) return;
+
+// Spacja - Łapanie drinka
+if (e.code === 'Space') {
+let caught = false;
+for (let i = 0; i < drinks.length; i++) {
+let d = drinks[i];
+if (!d.active) continue;
+
+// Strefa łapania (tuż przed graczem)
+if (d.obj.position.x > 4.2 && d.obj.position.x < 5.8) {
+catchDrink(d);
+caught = true;
+break; // Łapiemy tylko jednego na raz
+}
+}
+
+// Animacja gracza (szarpnięcie głową/ciałem)
+player.rotation.z = 0.2;
+setTimeout(() => { if(!isSwaying) player.rotation.z = 0; }, 150);
+}
+
+// Strzałki - Etap 2 Kontra chwiania
+if (stage === 2 && isSwaying) {
+let correctPressed = false;
+// Chwieje się w lewo (do tyłu głowy gracza) -> trzeba nacisnąć prawą strzałkę
+if (swayDirection === -1 && (e.code === 'ArrowRight' || e.code === 'KeyD')) correctPressed = true;
+// Chwieje się w prawo (na bar) -> trzeba nacisnąć lewą strzałkę
+if (swayDirection === 1 && (e.code === 'ArrowLeft' || e.code === 'KeyA')) correctPressed = true;
+
+if (correctPressed) {
+resolveSway();
+} else if (e.code === 'ArrowLeft' || e.code === 'ArrowRight' || e.code === 'KeyA' || e.code === 'KeyD') {
+// Wciśnięto złą strzałkę
+triggerFall("Zły kierunek! Spadłeś ze stołka.");
+}
+}
+});
+
+function catchDrink(drinkObj) {
+drinkObj.active = false;
+scene.remove(drinkObj.obj);
+score++;
+drinksSinceLastSway++;
+updateUI();
+
+// Zwiększanie trudności
+baseSpeed += 0.002;
+if (spawnInterval > 40) spawnInterval -= 1;
+
+// Przejście do Etapu 2
+if (stage === 1 && score >= stage1Goal) {
+startStage2();
+}
+
+// Logika odpalania chwiania w Etapie 2
+if (stage === 2 && !isSwaying && drinksSinceLastSway >= nextSwayThreshold) {
+triggerSway();
+}
+}
+
+function triggerSway() {
+isSwaying = true;
+swayTimer = 0;
+swayDirection = Math.random() > 0.5 ? 1 : -1;
+drinksSinceLastSway = 0;
+nextSwayThreshold = Math.random() > 0.5 ? 2 : 3;
+
+const hint = document.getElementById('qte-hint');
+hint.style.display = 'block';
+if (swayDirection === -1) {
+// Leci w tył/lewo
+player.rotation.z = -0.3;
+hint.innerHTML = '➡️ KONTRUJ!';
+hint.style.color = '#4caf50';
+} else {
+// Leci na bar/prawo
+player.rotation.z = 0.3;
+hint.innerHTML = '⬅️ KONTRUJ!';
+hint.style.color = '#2196f3';
+}
+}
+
+function resolveSway() {
+isSwaying = false;
+player.rotation.z = 0;
+document.getElementById('qte-hint').style.display = 'none';
+}
+
+function triggerFall(reason) {
+isGameOver = true;
+document.getElementById('qte-hint').style.display = 'none';
+player.rotation.z = swayDirection * (Math.PI / 2); // Pada na ziemię
+player.position.y = -2;
+showMsg(GAME OVER&lt;br&gt;&lt;span style="font-size:24px"&gt;${reason}</span>`, 'danger');
+}
+
+function triggerKickout() {
+isGameOver = true;
+player.rotation.z = Math.PI / 2;
+player.position.x += 2;
+player.position.y = -2;
+showMsg(GAME OVER&lt;br&gt;&lt;span style="font-size:24px"&gt;"NIE MA TAKIEGO PICIA!"&lt;/span&gt;&lt;br&gt;&lt;span class="instruction"&gt;Krzyczy barman.&lt;/span>, 'danger');
+}
+
+function startStage2() {
+stage = 2;
+document.getElementById('stage-info').innerText = "Etap 2";
+document.getElementById('stage-info').style.color = "#ffeb3b";
+
+// Komunikat na ułamek sekundy
+const msg = document.getElementById('center-msg');
+msg.innerHTML = '<span class="highlight">ETAP 2</span><br><span class="instruction">Bohater się chwieje! Kontruj strzałkami w przeciwną stronę!</span>';
+msg.style.display = 'block';
+setTimeout(() => { if(!isGameOver) msg.style.display = 'none'; }, 2500);
+}
+
+function showMsg(htmlText, colorClass = '') {
+const msgObj = document.getElementById('center-msg');
+msgObj.innerHTML = <span class="${colorClass}">${htmlText}</span>`;
+msgObj.style.display = 'block';
+}
+
+function updateUI() {
+document.getElementById('score').innerText = score;
+let livesStr = '';
+for(let i=0; i<maxMisses - misses; i++) livesStr += '❤';
+for(let i=0; i<misses; i++) livesStr += '🤍';
+document.getElementById('lives').innerText = livesStr;
+}
+
+// Początkowa instrukcja
+showMsg('<span class="highlight">KLIMAtyczny Mateo</span><br><span class="instruction">Złap drinka naciskając SPACJĘ w odpowiednim momencie.</span>');
+setTimeout(() => { if(!isGameOver) document.getElementById('center-msg').style.display = 'none'; }, 3000);
+
+// 6. Główna pętla gry
+function animate() {
+requestAnimationFrame(animate);
+
+if (!isGameOver) {
+spawnTimer++;
+if (spawnTimer >= spawnInterval) {
+spawnTimer = 0;
+spawnDrink();
+}
+
+// Ruch drinków i sprawdzanie upadku
+for (let i = drinks.length - 1; i >= 0; i--) {
+let d = drinks[i];
+if (!d.active) continue;
+
+d.obj.position.x += baseSpeed;
+
+// Jeśli drink przeleci za gracza (spada)
+if (d.obj.position.x > 6.5) {
+d.active = false;
+scene.remove(d.obj);
+misses++;
+updateUI();
+
+if (misses >= maxMisses) {
+triggerKickout();
+}
+}
+}
+
+// Mechanika upływu czasu dla chwiania
+if (isSwaying) {
+swayTimer++;
+// Płynne pogłębianie wychylenia
+player.rotation.z += swayDirection * 0.005;
+
+if (swayTimer >= swayTimeLimit) {
+triggerFall("Zbyt wolna reakcja! Spadłeś ze stołka.");
+}
+}
+}
+
+renderer.render(scene, camera);
+}
+
+// Responsywność
+window.addEventListener('resize', () => {
+const aspect = window.innerWidth / window.innerHeight;
+camera.left = -viewSize * aspect / 2;
+camera.right = viewSize * aspect / 2;
+camera.top = viewSize / 2;
+camera.bottom = -viewSize / 2;
+camera.updateProjectionMatrix();
+renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Start
+updateUI();
+animate();
+</script>
+</body>
+</html>
