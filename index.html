@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>KLIMAtyczny Mateo - Cross-Platform Edition</title>
+    <title>KLIMAtyczny Mateo - Arcade Pro</title>
     <style>
         body {
             margin: 0;
@@ -12,7 +12,7 @@
             font-family: 'Courier New', Courier, monospace;
             color: white;
             user-select: none;
-            touch-action: none; /* Blokada gestów na mobile */
+            touch-action: none;
         }
         #ui-layer {
             position: absolute;
@@ -67,13 +67,12 @@
             to { transform: translate(-50%, -50%) scale(1.1); }
         }
         
-        /* Panel sterowania mobilnego - domyślnie ukryty */
         #mobile-controls {
             position: absolute;
-            bottom: 20px;
+            bottom: 30px;
             left: 0;
             width: 100%;
-            display: none; /* Włączane dynamicznie przez JS na mobile */
+            display: none;
             justify-content: space-around;
             align-items: center;
             pointer-events: auto;
@@ -81,33 +80,26 @@
             box-sizing: border-box;
         }
         .ctrl-btn {
-            background: rgba(255, 255, 255, 0.15);
-            border: 3px solid rgba(255, 255, 255, 0.4);
+            background: rgba(255, 255, 255, 0.2);
+            border: 3px solid rgba(255, 255, 255, 0.5);
             color: white;
-            font-size: 24px;
+            font-size: 28px;
             display: flex;
             justify-content: center;
             align-items: center;
             user-select: none;
             border-radius: 50%;
-            width: 70px;
-            height: 70px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
-            transition: background 0.1s;
-        }
-        .ctrl-btn:active {
-            background: rgba(255, 255, 255, 0.5);
+            width: 75px;
+            height: 75px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.6);
         }
         #btn-catch {
-            width: 140px;
+            width: 150px;
             border-radius: 20px;
-            font-size: 28px;
+            font-size: 26px;
             font-weight: bold;
-            background: rgba(76, 175, 80, 0.3);
-            border-color: rgba(76, 175, 80, 0.8);
-        }
-        #btn-catch:active {
-            background: rgba(76, 175, 80, 0.7);
+            background: rgba(76, 175, 80, 0.4);
+            border-color: rgba(76, 175, 80, 0.9);
         }
 
         .highlight { color: #ffeb3b; }
@@ -141,14 +133,14 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // 1. SYSTEM DETEKCJI URZĄDZENIA
+        // System wykrywania sprzętu
         const isMobile = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.matchMedia("(pointer: coarse)").matches));
         
         if (isMobile) {
             document.getElementById('mobile-controls').style.display = 'flex';
         }
 
-        // 2. Konfiguracja Sceny Three.js
+        // Konfiguracja widoku 2.5D
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x1a120c); 
 
@@ -166,14 +158,13 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // Oświetlenie
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
         scene.add(ambientLight);
         const dirLight = new THREE.DirectionalLight(0xffddaa, 0.6);
         dirLight.position.set(0, 10, 5);
         scene.add(dirLight);
 
-        // Zmienne Gry
+        // Zmienne stanów
         let stage = 1;
         let score = 0;
         let misses = 0;
@@ -182,19 +173,17 @@
         let isGameOver = false;
 
         let drinks = [];
-        let baseSpeed = 0.08;
+        let baseSpeed = 0.07;
         let spawnTimer = 0;
-        let spawnInterval = 100;
+        let spawnInterval = 110;
 
-        // Mechanika chwiania (Etap 2)
         let isSwaying = false;
         let swayDirection = 0; 
         let swayTimer = 0;
-        const swayTimeLimit = 90; 
+        const swayTimeLimit = 95; 
         let drinksSinceLastSway = 0;
         let nextSwayThreshold = 2;
 
-        // Materiały
         const mat = {
             skin: new THREE.MeshLambertMaterial({ color: 0xffccaa }),
             beard: new THREE.MeshLambertMaterial({ color: 0xd9534f }),
@@ -205,7 +194,7 @@
             drinkLiquid: new THREE.MeshLambertMaterial({ color: 0xccffff })
         };
 
-        // Barman (Lewa strona)
+        // Rysowanie postaci na scenie
         const bartender = new THREE.Group();
         const bBody = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 1), mat.shirtBartender);
         bBody.position.y = 1.5;
@@ -215,7 +204,6 @@
         bartender.position.set(-7, 0, 0);
         scene.add(bartender);
 
-        // Gracz (Prawa strona)
         const player = new THREE.Group();
         const pBody = new THREE.Mesh(new THREE.BoxGeometry(2.5, 3.2, 1.5), mat.shirtPlayer);
         pBody.position.y = 1.6;
@@ -226,12 +214,10 @@
         const pStool = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 2, 8), new THREE.MeshLambertMaterial({color: 0x331a00}));
         pStool.position.y = -1;
         player.add(pBody, pHead, pBeard, pStool);
-        player.position.set(6, 0, 0);
+        player.position.set(6, 0, 0); // Pozycja X klienta to 6
         scene.add(player);
 
-        // Blat Baru
-        const barGeo = new THREE.BoxGeometry(16, 1, 3);
-        const barMesh = new THREE.Mesh(barGeo, mat.barTable);
+        const barMesh = new THREE.Mesh(new THREE.BoxGeometry(16, 1, 3), mat.barTable);
         barMesh.position.set(0, 0.5, 0);
         scene.add(barMesh);
 
@@ -245,21 +231,21 @@
             
             drink.position.set(-5.5, 1, 0); 
             scene.add(drink);
-            drinks.push({ obj: drink, active: true });
+            drinks.push({ obj: drink, active: true, falling: false, fallY: 1 });
 
             bartender.rotation.z = -0.1;
             setTimeout(() => { bartender.rotation.z = 0; }, 100);
         }
 
-        // Akcje wejściowe (wspólne dla obu typów sterowania)
         function actionCatch() {
             if (isGameOver) return;
             let caught = false;
             for (let i = 0; i < drinks.length; i++) {
                 let d = drinks[i];
-                if (!d.active) continue;
+                if (!d.active || d.falling) continue;
                 
-                if (d.obj.position.x > 4.2 && d.obj.position.x < 5.8) {
+                // Zwiększony margines błędu - szerokość postaci (od środka blatu aż po plecy na stołku)
+                if (d.obj.position.x > 4.0 && d.obj.position.x < 7.2) {
                     processCatch(d);
                     caught = true;
                     break; 
@@ -277,7 +263,7 @@
             updateUI();
 
             baseSpeed += 0.002;
-            if (spawnInterval > 40) spawnInterval -= 1;
+            if (spawnInterval > 45) spawnInterval -= 1;
 
             if (stage === 1 && score >= stage1Goal) {
                 startStage2();
@@ -290,38 +276,29 @@
 
         function actionLeft() {
             if (isGameOver || stage !== 2 || !isSwaying) return;
-            if (swayDirection === 1) {
-                resolveSway();
-            } else {
-                triggerFall(isMobile ? "Zła strzałka! Spadłeś ze stołka." : "Zły klawisz! Spadłeś ze stołka.");
-            }
+            if (swayDirection === 1) resolveSway();
+            else triggerFall(isMobile ? "Zła strzałka! Spadłeś ze stołka." : "Zły klawisz! Spadłeś ze stołka.");
         }
 
         function actionRight() {
             if (isGameOver || stage !== 2 || !isSwaying) return;
-            if (swayDirection === -1) {
-                resolveSway();
-            } else {
-                triggerFall(isMobile ? "Zła strzałka! Spadłeś ze stołka." : "Zły klawisz! Spadłeś ze stołka.");
-            }
+            if (swayDirection === -1) resolveSway();
+            else triggerFall(isMobile ? "Zła strzałka! Spadłeś ze stołka." : "Zły klawisz! Spadłeś ze stołka.");
         }
 
-        // Dynamiczne przypisanie nasłuchiwania w zależności od sprzętu
+        // Mapowanie zdarzeń mobilnych i PC bez konfliktów blokad interfejsu
         if (isMobile) {
-            const bindMobile = (elId, action) => {
-                const el = document.getElementById(elId);
-                el.addEventListener('touchstart', (e) => { e.preventDefault(); action(); }, {passive: false});
-            };
-            bindMobile('btn-catch', actionCatch);
-            bindMobile('btn-left', actionLeft);
-            bindMobile('btn-right', actionRight);
-        } else {
-            window.addEventListener('keydown', (e) => {
-                if (e.code === 'Space') actionCatch();
-                if (e.code === 'ArrowLeft' || e.code === 'KeyA') actionLeft();
-                if (e.code === 'ArrowRight' || e.code === 'KeyD') actionRight();
-            });
+            document.getElementById('btn-catch').addEventListener('touchstart', (e) => { actionCatch(); });
+            document.getElementById('btn-left').addEventListener('touchstart', (e) => { actionLeft(); });
+            document.getElementById('btn-right').addEventListener('touchstart', (e) => { actionRight(); });
         }
+        
+        // Zostawiamy klawiaturę aktywną w tle dla testów i wersji desktop
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') actionCatch();
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') actionLeft();
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') actionRight();
+        });
 
         function triggerSway() {
             isSwaying = true;
@@ -333,7 +310,6 @@
             const hint = document.getElementById('qte-hint');
             hint.style.display = 'block';
             
-            // Tekst dostosowany do platformy
             const ctrlText = isMobile ? "KONTRUJ!" : "KLIKAJ!";
             if (swayDirection === -1) {
                 player.rotation.z = -0.3;
@@ -394,8 +370,7 @@
             document.getElementById('lives').innerText = livesStr;
         }
 
-        // Pierwsza konfiguracja interfejsu startowego w zależności od sprzętu
-        const startInstruction = isMobile ? "Dotknij przycisk ŁAP w odpowiednim momencie." : "Naciśnij SPACJĘ, gdy drink znajdzie się przy kliencie.";
+        const startInstruction = isMobile ? "Dotknij ŁAP, gdy kieliszek będzie przy facecie." : "Naciśnij SPACJĘ, gdy drink znajdzie się przy kliencie.";
         showMsg(`<span class="highlight">KLIMAtyczny Mateo</span><br><span class="instruction">${startInstruction}</span>`);
         setTimeout(() => { if(!isGameOver) document.getElementById('center-msg').style.display = 'none'; }, 4000);
 
@@ -409,20 +384,35 @@
                     spawnDrink();
                 }
 
+                // Logika przemieszczania trunków i animacja fizyki upadku
                 for (let i = drinks.length - 1; i >= 0; i--) {
                     let d = drinks[i];
                     if (!d.active) continue;
 
-                    d.obj.position.x += baseSpeed;
-
-                    if (d.obj.position.x > 6.5) {
-                        d.active = false;
-                        scene.remove(d.obj);
-                        misses++;
-                        updateUI();
+                    if (!d.falling) {
+                        d.obj.position.x += baseSpeed;
                         
-                        if (misses >= maxMisses) {
-                            triggerKickout();
+                        // Kufel mija punkt uchwytu (7.2 to krawędź za plecami) i zaczyna spadać
+                        if (d.obj.position.x > 7.2) {
+                            d.falling = true;
+                        }
+                    } else {
+                        // Animacja lotu w dół za plecy bohatera
+                        d.obj.position.x += baseSpeed * 0.5;
+                        d.fallY -= 0.15;
+                        d.obj.position.y = d.fallY;
+                        d.obj.rotation.z += 0.1; // Rotacja tłuczonego szkła
+
+                        // Zderzenie z podłogą
+                        if (d.obj.position.y < -1.5) {
+                            d.active = false;
+                            scene.remove(d.obj);
+                            misses++;
+                            updateUI();
+                            
+                            if (misses >= maxMisses) {
+                                triggerKickout();
+                            }
                         }
                     }
                 }
@@ -440,7 +430,6 @@
             renderer.render(scene, camera);
         }
 
-        // Obsługa geometrii okna
         window.addEventListener('resize', () => {
             const aspect = window.innerWidth / window.innerHeight;
             camera.left = -viewSize * aspect / 2;
