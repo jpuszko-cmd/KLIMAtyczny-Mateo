@@ -1,395 +1,458 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KLIMAtyczny Mateo - Arcade Edition</title>
-<style>
-body {
-margin: 0;
-overflow: hidden;
-background-color: #111;
-font-family: 'Courier New', Courier, monospace;
-color: white;
-user-select: none;
-}
-#ui-layer {
-position: absolute;
-top: 0;
-left: 0;
-width: 100%;
-height: 100%;
-pointer-events: none;
-display: flex;
-flex-direction: column;
-justify-content: space-between;
-}
-#top-bar {
-padding: 20px;
-font-size: 24px;
-font-weight: bold;
-display: flex;
-justify-content: space-between;
-text-shadow: 2px 2px 0 #000;
-}
-#center-msg {
-position: absolute;
-top: 50%;
-left: 50%;
-transform: translate(-50%, -50%);
-font-size: 40px;
-text-align: center;
-text-shadow: 3px 3px 0 #000;
-background: rgba(0,0,0,0.8);
-padding: 20px 40px;
-border-radius: 10px;
-display: none;
-border: 2px solid #555;
-}
-#qte-hint {
-position: absolute;
-top: 30%;
-left: 75%;
-transform: translate(-50%, -50%);
-font-size: 60px;
-text-shadow: 4px 4px 0 #000;
-display: none;
-background: rgba(0,0,0,0.6);
-padding: 10px 20px;
-border-radius: 10px;
-animation: pulse 0.5s infinite alternate;
-}
-@keyframes pulse {
-from { transform: translate(-50%, -50%) scale(1); }
-to { transform: translate(-50%, -50%) scale(1.1); }
-}
-.highlight { color: #ffeb3b; }
-.danger { color: #f44336; }
-.success { color: #4caf50; }
-.instruction { font-size: 18px; color: #ccc; margin-top: 10px; display: block; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>KLIMAtyczny Mateo - Cross-Platform Edition</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #111;
+            font-family: 'Courier New', Courier, monospace;
+            color: white;
+            user-select: none;
+            touch-action: none; /* Blokada gestów na mobile */
+        }
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        #top-bar {
+            padding: 15px;
+            font-size: 20px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            text-shadow: 2px 2px 0 #000;
+        }
+        #center-msg {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 28px;
+            text-align: center;
+            text-shadow: 3px 3px 0 #000;
+            background: rgba(0,0,0,0.85);
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+            border: 2px solid #555;
+            width: 80%;
+            max-width: 400px;
+        }
+        #qte-hint {
+            position: absolute;
+            top: 25%;
+            left: 75%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            text-shadow: 4px 4px 0 #000;
+            display: none;
+            background: rgba(0,0,0,0.7);
+            padding: 10px 20px;
+            border-radius: 10px;
+            animation: pulse 0.5s infinite alternate;
+        }
+        @keyframes pulse {
+            from { transform: translate(-50%, -50%) scale(1); }
+            to { transform: translate(-50%, -50%) scale(1.1); }
+        }
+        
+        /* Panel sterowania mobilnego - domyślnie ukryty */
+        #mobile-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            display: none; /* Włączane dynamicznie przez JS na mobile */
+            justify-content: space-around;
+            align-items: center;
+            pointer-events: auto;
+            padding: 0 10px;
+            box-sizing: border-box;
+        }
+        .ctrl-btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: 3px solid rgba(255, 255, 255, 0.4);
+            color: white;
+            font-size: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            user-select: none;
+            border-radius: 50%;
+            width: 70px;
+            height: 70px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+            transition: background 0.1s;
+        }
+        .ctrl-btn:active {
+            background: rgba(255, 255, 255, 0.5);
+        }
+        #btn-catch {
+            width: 140px;
+            border-radius: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            background: rgba(76, 175, 80, 0.3);
+            border-color: rgba(76, 175, 80, 0.8);
+        }
+        #btn-catch:active {
+            background: rgba(76, 175, 80, 0.7);
+        }
+
+        .highlight { color: #ffeb3b; }
+        .danger { color: #f44336; }
+        .success { color: #4caf50; }
+        .instruction { font-size: 16px; color: #ccc; margin-top: 10px; display: block; }
+    </style>
 </head>
 <body>
 
-<div id="ui-layer">
-<div id="top-bar">
-<div>
-Wypite: <span id="score" class="highlight">0</span>
-<span id="stage-info" style="margin-left:20px; color:#aaa;">Etap 1</span>
-</div>
-<div>Szanse: <span id="lives" class="danger">❤❤❤</span></div>
-</div>
-<div id="center-msg"></div>
-<div id="qte-hint"></div>
-</div>
+    <div id="ui-layer">
+        <div id="top-bar">
+            <div>
+                Wypite: <span id="score" class="highlight">0</span>
+                <span id="stage-info" style="display:block; font-size: 14px; color:#aaa; margin-top: 5px;">Etap 1</span>
+            </div>
+            <div style="text-align: right;">
+                Szanse:<br><span id="lives" class="danger">❤❤❤</span>
+            </div>
+        </div>
+        
+        <div id="center-msg"></div>
+        <div id="qte-hint"></div>
 
-<!-- Biblioteka Three.js -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
-// 1. Konfiguracja Sceny (Ortograficzna kamera dla 2D)
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1a120c);
+        <div id="mobile-controls">
+            <div id="btn-left" class="ctrl-btn">⬅️</div>
+            <div id="btn-catch" class="ctrl-btn">ŁAP</div>
+            <div id="btn-right" class="ctrl-btn">➡️</div>
+        </div>
+    </div>
 
-const aspect = window.innerWidth / window.innerHeight;
-const viewSize = 12;
-const camera = new THREE.OrthographicCamera(
--viewSize * aspect / 2, viewSize * aspect / 2,
-viewSize / 2, -viewSize / 2,
-0.1, 100
-);
-camera.position.set(0, 2, 10);
-camera.lookAt(0, 2, 0);
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // 1. SYSTEM DETEKCJI URZĄDZENIA
+        const isMobile = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.matchMedia("(pointer: coarse)").matches));
+        
+        if (isMobile) {
+            document.getElementById('mobile-controls').style.display = 'flex';
+        }
 
-const renderer = new THREE.WebGLRenderer({ antialias: false });
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
+        // 2. Konfiguracja Sceny Three.js
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a120c); 
 
-// Oświetlenie
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-scene.add(ambientLight);
-const dirLight = new THREE.DirectionalLight(0xffddaa, 0.6);
-dirLight.position.set(0, 10, 5);
-scene.add(dirLight);
+        const aspect = window.innerWidth / window.innerHeight;
+        const viewSize = 12;
+        const camera = new THREE.OrthographicCamera(
+            -viewSize * aspect / 2, viewSize * aspect / 2, 
+            viewSize / 2, -viewSize / 2, 
+            0.1, 100
+        );
+        camera.position.set(0, 2, 10);
+        camera.lookAt(0, 2, 0);
 
-// 2. Zmienne Gry
-let stage = 1;
-let score = 0;
-let misses = 0;
-const stage1Goal = 30;
-const maxMisses = 3;
-let isGameOver = false;
+        const renderer = new THREE.WebGLRenderer({ antialias: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
 
-let drinks = [];
-let baseSpeed = 0.08;
-let spawnTimer = 0;
-let spawnInterval = 100; // klatki
+        // Oświetlenie
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffddaa, 0.6);
+        dirLight.position.set(0, 10, 5);
+        scene.add(dirLight);
 
-// Zmienne mechaniki chwiania (Etap 2)
-let isSwaying = false;
-let swayDirection = 0; // -1 lewo, 1 prawo
-let swayTimer = 0;
-const swayTimeLimit = 90; // czas na reakcję
-let drinksSinceLastSway = 0;
-let nextSwayThreshold = 2; // co 2 lub 3 drinki
+        // Zmienne Gry
+        let stage = 1;
+        let score = 0;
+        let misses = 0;
+        const stage1Goal = 30;
+        const maxMisses = 3;
+        let isGameOver = false;
 
-// 3. Materiały
-const mat = {
-skin: new THREE.MeshLambertMaterial({ color: 0xffccaa }),
-beard: new THREE.MeshLambertMaterial({ color: 0xd9534f }),
-shirtPlayer: new THREE.MeshLambertMaterial({ color: 0x5cb85c }),
-shirtBartender: new THREE.MeshLambertMaterial({ color: 0xeeeeee }),
-barTable: new THREE.MeshLambertMaterial({ color: 0x4a3018 }),
-drinkBase: new THREE.MeshLambertMaterial({ color: 0xdddddd, transparent: true, opacity: 0.8 }),
-drinkLiquid: new THREE.MeshLambertMaterial({ color: 0xccffff })
-};
+        let drinks = [];
+        let baseSpeed = 0.08;
+        let spawnTimer = 0;
+        let spawnInterval = 100;
 
-// 4. Budowa Obiektów
+        // Mechanika chwiania (Etap 2)
+        let isSwaying = false;
+        let swayDirection = 0; 
+        let swayTimer = 0;
+        const swayTimeLimit = 90; 
+        let drinksSinceLastSway = 0;
+        let nextSwayThreshold = 2;
 
-// Barman (Lewa strona)
-const bartender = new THREE.Group();
-const bBody = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 1), mat.shirtBartender);
-bBody.position.y = 1.5;
-const bHead = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 1.5), mat.skin);
-bHead.position.y = 3.8;
-bartender.add(bBody, bHead);
-bartender.position.set(-7, 0, 0);
-scene.add(bartender);
+        // Materiały
+        const mat = {
+            skin: new THREE.MeshLambertMaterial({ color: 0xffccaa }),
+            beard: new THREE.MeshLambertMaterial({ color: 0xd9534f }),
+            shirtPlayer: new THREE.MeshLambertMaterial({ color: 0x5cb85c }),
+            shirtBartender: new THREE.MeshLambertMaterial({ color: 0xeeeeee }),
+            barTable: new THREE.MeshLambertMaterial({ color: 0x4a3018 }),
+            drinkBase: new THREE.MeshLambertMaterial({ color: 0xdddddd, transparent: true, opacity: 0.8 }),
+            drinkLiquid: new THREE.MeshLambertMaterial({ color: 0xccffff })
+        };
 
-// Gracz (Prawa strona)
-const player = new THREE.Group();
-const pBody = new THREE.Mesh(new THREE.BoxGeometry(2.5, 3.2, 1.5), mat.shirtPlayer);
-pBody.position.y = 1.6;
-const pHead = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.6, 1.6), mat.skin);
-pHead.position.y = 4.0;
-const pBeard = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.0, 1.7), mat.beard);
-pBeard.position.y = 3.4;
-const pStool = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 2, 8), new THREE.MeshLambertMaterial({color: 0x331a00}));
-pStool.position.y = -1;
-player.add(pBody, pHead, pBeard, pStool);
-player.position.set(6, 0, 0);
-scene.add(player);
+        // Barman (Lewa strona)
+        const bartender = new THREE.Group();
+        const bBody = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 1), mat.shirtBartender);
+        bBody.position.y = 1.5;
+        const bHead = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 1.5), mat.skin);
+        bHead.position.y = 3.8;
+        bartender.add(bBody, bHead);
+        bartender.position.set(-7, 0, 0);
+        scene.add(bartender);
 
-// Blat Baru
-const barGeo = new THREE.BoxGeometry(16, 1, 3);
-const barMesh = new THREE.Mesh(barGeo, mat.barTable);
-barMesh.position.set(0, 0.5, 0);
-scene.add(barMesh);
+        // Gracz (Prawa strona)
+        const player = new THREE.Group();
+        const pBody = new THREE.Mesh(new THREE.BoxGeometry(2.5, 3.2, 1.5), mat.shirtPlayer);
+        pBody.position.y = 1.6;
+        const pHead = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.6, 1.6), mat.skin);
+        pHead.position.y = 4.0;
+        const pBeard = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.0, 1.7), mat.beard);
+        pBeard.position.y = 3.4;
+        const pStool = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 2, 8), new THREE.MeshLambertMaterial({color: 0x331a00}));
+        pStool.position.y = -1;
+        player.add(pBody, pHead, pBeard, pStool);
+        player.position.set(6, 0, 0);
+        scene.add(player);
 
-// Tworzenie drinka
-function spawnDrink() {
-const drink = new THREE.Group();
-const glass = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.2, 0.5), mat.drinkBase);
-glass.position.y = 0.6;
-const liquid = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.9, 0.4), mat.drinkLiquid);
-liquid.position.y = 0.65;
-drink.add(glass, liquid);
+        // Blat Baru
+        const barGeo = new THREE.BoxGeometry(16, 1, 3);
+        const barMesh = new THREE.Mesh(barGeo, mat.barTable);
+        barMesh.position.set(0, 0.5, 0);
+        scene.add(barMesh);
 
-drink.position.set(-5.5, 1, 0); // Start przy barmanie
-scene.add(drink);
-drinks.push({ obj: drink, active: true });
+        function spawnDrink() {
+            const drink = new THREE.Group();
+            const glass = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.2, 0.5), mat.drinkBase);
+            glass.position.y = 0.6;
+            const liquid = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.9, 0.4), mat.drinkLiquid);
+            liquid.position.y = 0.65;
+            drink.add(glass, liquid);
+            
+            drink.position.set(-5.5, 1, 0); 
+            scene.add(drink);
+            drinks.push({ obj: drink, active: true });
 
-// Prosta animacja barmana
-bartender.rotation.z = -0.1;
-setTimeout(() => { bartender.rotation.z = 0; }, 100);
-}
+            bartender.rotation.z = -0.1;
+            setTimeout(() => { bartender.rotation.z = 0; }, 100);
+        }
 
-// 5. Sterowanie i Logika Łapania
-window.addEventListener('keydown', (e) => {
-if (isGameOver) return;
+        // Akcje wejściowe (wspólne dla obu typów sterowania)
+        function actionCatch() {
+            if (isGameOver) return;
+            let caught = false;
+            for (let i = 0; i < drinks.length; i++) {
+                let d = drinks[i];
+                if (!d.active) continue;
+                
+                if (d.obj.position.x > 4.2 && d.obj.position.x < 5.8) {
+                    processCatch(d);
+                    caught = true;
+                    break; 
+                }
+            }
+            player.rotation.z = 0.2;
+            setTimeout(() => { if(!isSwaying) player.rotation.z = 0; }, 150);
+        }
 
-// Spacja - Łapanie drinka
-if (e.code === 'Space') {
-let caught = false;
-for (let i = 0; i < drinks.length; i++) {
-let d = drinks[i];
-if (!d.active) continue;
+        function processCatch(drinkObj) {
+            drinkObj.active = false;
+            scene.remove(drinkObj.obj);
+            score++;
+            drinksSinceLastSway++;
+            updateUI();
 
-// Strefa łapania (tuż przed graczem)
-if (d.obj.position.x > 4.2 && d.obj.position.x < 5.8) {
-catchDrink(d);
-caught = true;
-break; // Łapiemy tylko jednego na raz
-}
-}
+            baseSpeed += 0.002;
+            if (spawnInterval > 40) spawnInterval -= 1;
 
-// Animacja gracza (szarpnięcie głową/ciałem)
-player.rotation.z = 0.2;
-setTimeout(() => { if(!isSwaying) player.rotation.z = 0; }, 150);
-}
+            if (stage === 1 && score >= stage1Goal) {
+                startStage2();
+            }
 
-// Strzałki - Etap 2 Kontra chwiania
-if (stage === 2 && isSwaying) {
-let correctPressed = false;
-// Chwieje się w lewo (do tyłu głowy gracza) -> trzeba nacisnąć prawą strzałkę
-if (swayDirection === -1 && (e.code === 'ArrowRight' || e.code === 'KeyD')) correctPressed = true;
-// Chwieje się w prawo (na bar) -> trzeba nacisnąć lewą strzałkę
-if (swayDirection === 1 && (e.code === 'ArrowLeft' || e.code === 'KeyA')) correctPressed = true;
+            if (stage === 2 && !isSwaying && drinksSinceLastSway >= nextSwayThreshold) {
+                triggerSway();
+            }
+        }
 
-if (correctPressed) {
-resolveSway();
-} else if (e.code === 'ArrowLeft' || e.code === 'ArrowRight' || e.code === 'KeyA' || e.code === 'KeyD') {
-// Wciśnięto złą strzałkę
-triggerFall("Zły kierunek! Spadłeś ze stołka.");
-}
-}
-});
+        function actionLeft() {
+            if (isGameOver || stage !== 2 || !isSwaying) return;
+            if (swayDirection === 1) {
+                resolveSway();
+            } else {
+                triggerFall(isMobile ? "Zła strzałka! Spadłeś ze stołka." : "Zły klawisz! Spadłeś ze stołka.");
+            }
+        }
 
-function catchDrink(drinkObj) {
-drinkObj.active = false;
-scene.remove(drinkObj.obj);
-score++;
-drinksSinceLastSway++;
-updateUI();
+        function actionRight() {
+            if (isGameOver || stage !== 2 || !isSwaying) return;
+            if (swayDirection === -1) {
+                resolveSway();
+            } else {
+                triggerFall(isMobile ? "Zła strzałka! Spadłeś ze stołka." : "Zły klawisz! Spadłeś ze stołka.");
+            }
+        }
 
-// Zwiększanie trudności
-baseSpeed += 0.002;
-if (spawnInterval > 40) spawnInterval -= 1;
+        // Dynamiczne przypisanie nasłuchiwania w zależności od sprzętu
+        if (isMobile) {
+            const bindMobile = (elId, action) => {
+                const el = document.getElementById(elId);
+                el.addEventListener('touchstart', (e) => { e.preventDefault(); action(); }, {passive: false});
+            };
+            bindMobile('btn-catch', actionCatch);
+            bindMobile('btn-left', actionLeft);
+            bindMobile('btn-right', actionRight);
+        } else {
+            window.addEventListener('keydown', (e) => {
+                if (e.code === 'Space') actionCatch();
+                if (e.code === 'ArrowLeft' || e.code === 'KeyA') actionLeft();
+                if (e.code === 'ArrowRight' || e.code === 'KeyD') actionRight();
+            });
+        }
 
-// Przejście do Etapu 2
-if (stage === 1 && score >= stage1Goal) {
-startStage2();
-}
+        function triggerSway() {
+            isSwaying = true;
+            swayTimer = 0;
+            swayDirection = Math.random() > 0.5 ? 1 : -1;
+            drinksSinceLastSway = 0;
+            nextSwayThreshold = Math.random() > 0.5 ? 2 : 3;
 
-// Logika odpalania chwiania w Etapie 2
-if (stage === 2 && !isSwaying && drinksSinceLastSway >= nextSwayThreshold) {
-triggerSway();
-}
-}
+            const hint = document.getElementById('qte-hint');
+            hint.style.display = 'block';
+            
+            // Tekst dostosowany do platformy
+            const ctrlText = isMobile ? "KONTRUJ!" : "KLIKAJ!";
+            if (swayDirection === -1) {
+                player.rotation.z = -0.3;
+                hint.innerHTML = `➡️ ${ctrlText}`;
+                hint.style.color = '#4caf50';
+            } else {
+                player.rotation.z = 0.3;
+                hint.innerHTML = `⬅️ ${ctrlText}`;
+                hint.style.color = '#2196f3';
+            }
+        }
 
-function triggerSway() {
-isSwaying = true;
-swayTimer = 0;
-swayDirection = Math.random() > 0.5 ? 1 : -1;
-drinksSinceLastSway = 0;
-nextSwayThreshold = Math.random() > 0.5 ? 2 : 3;
+        function resolveSway() {
+            isSwaying = false;
+            player.rotation.z = 0;
+            document.getElementById('qte-hint').style.display = 'none';
+        }
 
-const hint = document.getElementById('qte-hint');
-hint.style.display = 'block';
-if (swayDirection === -1) {
-// Leci w tył/lewo
-player.rotation.z = -0.3;
-hint.innerHTML = '➡️ KONTRUJ!';
-hint.style.color = '#4caf50';
-} else {
-// Leci na bar/prawo
-player.rotation.z = 0.3;
-hint.innerHTML = '⬅️ KONTRUJ!';
-hint.style.color = '#2196f3';
-}
-}
+        function triggerFall(reason) {
+            isGameOver = true;
+            document.getElementById('qte-hint').style.display = 'none';
+            player.rotation.z = swayDirection * (Math.PI / 2);
+            player.position.y = -2;
+            showMsg(`GAME OVER<br><span style="font-size:20px">${reason}</span>`, 'danger');
+        }
 
-function resolveSway() {
-isSwaying = false;
-player.rotation.z = 0;
-document.getElementById('qte-hint').style.display = 'none';
-}
+        function triggerKickout() {
+            isGameOver = true;
+            player.rotation.z = Math.PI / 2;
+            player.position.x += 2;
+            player.position.y = -2;
+            showMsg(`GAME OVER<br><span style="font-size:24px">"NIE MA TAKIEGO PICIA!"</span><br><span class="instruction">Krzyczy barman.</span>`, 'danger');
+        }
 
-function triggerFall(reason) {
-isGameOver = true;
-document.getElementById('qte-hint').style.display = 'none';
-player.rotation.z = swayDirection * (Math.PI / 2); // Pada na ziemię
-player.position.y = -2;
-showMsg(GAME OVER&lt;br&gt;&lt;span style="font-size:24px"&gt;${reason}</span>`, 'danger');
-}
+        function startStage2() {
+            stage = 2;
+            document.getElementById('stage-info').innerText = "Etap 2: Zachowaj równowagę";
+            document.getElementById('stage-info').style.color = "#ffeb3b";
+            
+            const msg = document.getElementById('center-msg');
+            const instruct = isMobile ? "Użyj bocznych strzałek dotykowych do kontry." : "Użyj strzałek na klawiaturze (LEWO/PRAWO) lub A/D.";
+            msg.innerHTML = `<span class="highlight">ETAP 2</span><br><span class="instruction">Bohater się chwieje!<br>${instruct}</span>`;
+            msg.style.display = 'block';
+            setTimeout(() => { if(!isGameOver) msg.style.display = 'none'; }, 3500);
+        }
 
-function triggerKickout() {
-isGameOver = true;
-player.rotation.z = Math.PI / 2;
-player.position.x += 2;
-player.position.y = -2;
-showMsg(GAME OVER&lt;br&gt;&lt;span style="font-size:24px"&gt;"NIE MA TAKIEGO PICIA!"&lt;/span&gt;&lt;br&gt;&lt;span class="instruction"&gt;Krzyczy barman.&lt;/span>, 'danger');
-}
+        function showMsg(htmlText, colorClass = '') {
+            const msgObj = document.getElementById('center-msg');
+            msgObj.innerHTML = `<span class="${colorClass}">${htmlText}</span>`;
+            msgObj.style.display = 'block';
+        }
 
-function startStage2() {
-stage = 2;
-document.getElementById('stage-info').innerText = "Etap 2";
-document.getElementById('stage-info').style.color = "#ffeb3b";
+        function updateUI() {
+            document.getElementById('score').innerText = score;
+            let livesStr = '';
+            for(let i=0; i<maxMisses - misses; i++) livesStr += '❤';
+            for(let i=0; i<misses; i++) livesStr += '🤍';
+            document.getElementById('lives').innerText = livesStr;
+        }
 
-// Komunikat na ułamek sekundy
-const msg = document.getElementById('center-msg');
-msg.innerHTML = '<span class="highlight">ETAP 2</span><br><span class="instruction">Bohater się chwieje! Kontruj strzałkami w przeciwną stronę!</span>';
-msg.style.display = 'block';
-setTimeout(() => { if(!isGameOver) msg.style.display = 'none'; }, 2500);
-}
+        // Pierwsza konfiguracja interfejsu startowego w zależności od sprzętu
+        const startInstruction = isMobile ? "Dotknij przycisk ŁAP w odpowiednim momencie." : "Naciśnij SPACJĘ, gdy drink znajdzie się przy kliencie.";
+        showMsg(`<span class="highlight">KLIMAtyczny Mateo</span><br><span class="instruction">${startInstruction}</span>`);
+        setTimeout(() => { if(!isGameOver) document.getElementById('center-msg').style.display = 'none'; }, 4000);
 
-function showMsg(htmlText, colorClass = '') {
-const msgObj = document.getElementById('center-msg');
-msgObj.innerHTML = <span class="${colorClass}">${htmlText}</span>`;
-msgObj.style.display = 'block';
-}
+        function animate() {
+            requestAnimationFrame(animate);
 
-function updateUI() {
-document.getElementById('score').innerText = score;
-let livesStr = '';
-for(let i=0; i<maxMisses - misses; i++) livesStr += '❤';
-for(let i=0; i<misses; i++) livesStr += '🤍';
-document.getElementById('lives').innerText = livesStr;
-}
+            if (!isGameOver) {
+                spawnTimer++;
+                if (spawnTimer >= spawnInterval) {
+                    spawnTimer = 0;
+                    spawnDrink();
+                }
 
-// Początkowa instrukcja
-showMsg('<span class="highlight">KLIMAtyczny Mateo</span><br><span class="instruction">Złap drinka naciskając SPACJĘ w odpowiednim momencie.</span>');
-setTimeout(() => { if(!isGameOver) document.getElementById('center-msg').style.display = 'none'; }, 3000);
+                for (let i = drinks.length - 1; i >= 0; i--) {
+                    let d = drinks[i];
+                    if (!d.active) continue;
 
-// 6. Główna pętla gry
-function animate() {
-requestAnimationFrame(animate);
+                    d.obj.position.x += baseSpeed;
 
-if (!isGameOver) {
-spawnTimer++;
-if (spawnTimer >= spawnInterval) {
-spawnTimer = 0;
-spawnDrink();
-}
+                    if (d.obj.position.x > 6.5) {
+                        d.active = false;
+                        scene.remove(d.obj);
+                        misses++;
+                        updateUI();
+                        
+                        if (misses >= maxMisses) {
+                            triggerKickout();
+                        }
+                    }
+                }
 
-// Ruch drinków i sprawdzanie upadku
-for (let i = drinks.length - 1; i >= 0; i--) {
-let d = drinks[i];
-if (!d.active) continue;
+                if (isSwaying) {
+                    swayTimer++;
+                    player.rotation.z += swayDirection * 0.005;
 
-d.obj.position.x += baseSpeed;
+                    if (swayTimer >= swayTimeLimit) {
+                        triggerFall("Zbyt wolna reakcja! Spadłeś ze stołka.");
+                    }
+                }
+            }
 
-// Jeśli drink przeleci za gracza (spada)
-if (d.obj.position.x > 6.5) {
-d.active = false;
-scene.remove(d.obj);
-misses++;
-updateUI();
+            renderer.render(scene, camera);
+        }
 
-if (misses >= maxMisses) {
-triggerKickout();
-}
-}
-}
+        // Obsługa geometrii okna
+        window.addEventListener('resize', () => {
+            const aspect = window.innerWidth / window.innerHeight;
+            camera.left = -viewSize * aspect / 2;
+            camera.right = viewSize * aspect / 2;
+            camera.top = viewSize / 2;
+            camera.bottom = -viewSize / 2;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
 
-// Mechanika upływu czasu dla chwiania
-if (isSwaying) {
-swayTimer++;
-// Płynne pogłębianie wychylenia
-player.rotation.z += swayDirection * 0.005;
-
-if (swayTimer >= swayTimeLimit) {
-triggerFall("Zbyt wolna reakcja! Spadłeś ze stołka.");
-}
-}
-}
-
-renderer.render(scene, camera);
-}
-
-// Responsywność
-window.addEventListener('resize', () => {
-const aspect = window.innerWidth / window.innerHeight;
-camera.left = -viewSize * aspect / 2;
-camera.right = viewSize * aspect / 2;
-camera.top = viewSize / 2;
-camera.bottom = -viewSize / 2;
-camera.updateProjectionMatrix();
-renderer.setSize(window.innerWidth, window.innerHeight);
-});
-
-// Start
-updateUI();
-animate();
-</script>
+        updateUI();
+        animate();
+    </script>
 </body>
 </html>
